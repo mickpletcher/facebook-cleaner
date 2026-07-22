@@ -2,7 +2,7 @@
 
 ## Project Status
 
-This document defines the approved concept for the initial project phase. The project is currently in concept development. Implementation has not started.
+This document defines the approved scope for the initial project phase. The primary timeline importer is implemented and has populated the local SQLite inventory. Secondary export sources and read-only Facebook enrichment remain future work.
 
 ## Project Goal
 
@@ -153,21 +153,27 @@ The initial phase is complete when:
 9. No Facebook content or settings are changed.
 10. No Facebook credentials are requested or stored.
 
+## Verified Export Findings
+
+The Facebook export was inspected locally on July 21, 2026. It contains 22,966 primary timeline records covering January 18, 2009 through July 20, 2026.
+
+The export confirms that:
+
+- Creation timestamps, post text, attachment types, media references, shared links, and some source information are available.
+- Facebook post IDs are generally absent from primary timeline records.
+- Direct Facebook post URLs are not reliably identified.
+- Audience settings are not mapped to individual posts.
+- Archive and trash files use a different record structure from the primary timeline.
+- Reels, videos, photos, albums, check-ins, and shared-link files may overlap primary timeline records.
+- Multiple download folders may belong to one export and include supplemental media without post metadata.
+
+Missing post IDs, direct URLs, audiences, and uncertain states must remain unavailable or unknown until they can be verified through a separately approved read-only enrichment process.
+
+The private export must not be copied into or committed to the repository.
+
 ## Next Step Before Implementation
 
-Allow the Facebook export to finish, extract it locally, and inspect a small representative sample of its folder and JSON structure.
-
-The inspection will determine:
-
-- Which JSON files contain the approved post types.
-- Which required fields are present.
-- How Facebook represents post identifiers and timestamps.
-- Whether direct post URLs and audience settings are included.
-- How shared sources and media references are represented.
-- How archived and trashed posts are represented.
-- Which fields will require later read-only enrichment.
-
-The export contains private information. It must be inspected locally and must not be copied into the repository.
+Review the SQLite data model in `docs/sqlite-data-model.md` and the phased implementation plan in `docs/implementation-plan.md`. The first coding assignment covers repository privacy protections and the SQLite foundation only.
 
 ## Future Upgrade
 

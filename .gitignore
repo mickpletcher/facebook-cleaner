@@ -216,3 +216,61 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node.js
+node_modules/
+coverage/
+*.tsbuildinfo
+
+# Facebook export privacy
+facebook-*/
+data/
+exports/
+reports/
+last-import-report.json
+validation-report.json
+*-import-report.json
+*-validation-report.json
+tests/fixtures/private/
+
+# Exported image, video, and audio media
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.heic
+*.heif
+*.tif
+*.tiff
+*.bmp
+*.mp4
+*.mov
+*.m4v
+*.avi
+*.webm
+*.mkv
+*.mp3
+*.m4a
+*.wav
+*.aac
+*.ogg
+*.flac
+
+# SQLite databases and sidecars
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Local application locks and temporary files
+*.lock
+*.tmp

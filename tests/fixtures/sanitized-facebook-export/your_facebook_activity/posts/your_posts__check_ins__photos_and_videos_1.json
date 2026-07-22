@@ -1,0 +1,54 @@
+[
+  {
+    "timestamp": 1704067200,
+    "data": [
+      {
+        "post": "Sanitized text post"
+      }
+    ],
+    "title": "Sample user added a post"
+  },
+  {
+    "timestamp": 1704153600,
+    "attachments": [
+      {
+        "data": [
+          {
+            "external_context": {
+              "url": "https://example.com/sample",
+              "name": "Sanitized link"
+            }
+          }
+        ]
+      }
+    ],
+    "data": [
+      {
+        "post": "Sanitized shared link"
+      }
+    ],
+    "title": "Sample user shared a link"
+  },
+  {
+    "timestamp": 1704240000,
+    "attachments": [
+      {
+        "data": [
+          {
+            "media": {
+              "uri": "your_facebook_activity/posts/media/placeholder.jpg",
+              "creation_timestamp": 1704240000,
+              "description": "Sanitized photo description"
+            }
+          }
+        ]
+      }
+    ],
+    "data": [
+      {
+        "post": "Sanitized photo post"
+      }
+    ],
+    "title": "Sample user added a photo"
+  }
+]
