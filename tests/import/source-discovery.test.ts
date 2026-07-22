@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   discoverTimelineSources,
@@ -16,7 +16,9 @@ function createExportRoot(files: Record<string, string>): string {
   const postsDirectory = join(root, "your_facebook_activity", "posts");
   mkdirSync(postsDirectory, { recursive: true });
   for (const [name, content] of Object.entries(files)) {
-    writeFileSync(join(postsDirectory, name), content, "utf8");
+    const filePath = join(postsDirectory, name);
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, content, "utf8");
   }
   return root;
 }
@@ -52,6 +54,39 @@ describe("discoverTimelineSources", () => {
 
     const collection = await discoverTimelineSources([root]);
     expect(collection.sourceFiles.map((file) => file.sequence)).toEqual([1, 2, 10]);
+  });
+
+  it("discovers and sorts numbered album metadata files", async () => {
+    const root = createExportRoot({
+      "your_posts__check_ins__photos_and_videos_1.json": "[]",
+      "album/10.json": JSON.stringify({ photos: [] }),
+      "album/2.json": JSON.stringify({ photos: [] }),
+    });
+
+    const collection = await discoverTimelineSources([root], true);
+    expect(
+      collection.sourceFiles
+        .filter((file) => file.sourceKind === "album_metadata")
+        .map((file) => file.sequence),
+    ).toEqual([2, 10]);
+  });
+
+  it("discovers content-sharing-link metadata", async () => {
+    const root = createExportRoot({
+      "your_posts__check_ins__photos_and_videos_1.json": "[]",
+      "content_sharing_links_you_have_created.json": "[]",
+    });
+
+    const collection = await discoverTimelineSources([root], true);
+    expect(collection.sourceFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          relativePath:
+            "your_facebook_activity/posts/content_sharing_links_you_have_created.json",
+          sourceKind: "sharing_link_metadata",
+        }),
+      ]),
+    );
   });
 
   it("produces the same fingerprint when export-root order changes", async () => {

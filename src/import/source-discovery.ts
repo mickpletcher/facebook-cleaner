@@ -15,7 +15,11 @@ const archiveFilename = "archive.json";
 const trashFilename = "trash.json";
 const videosFilename = "your_videos.json";
 const photosFilename = "your_uncategorized_photos.json";
+const checkinsFilename = "check-ins.json";
+const sharingLinksFilename = "content_sharing_links_you_have_created.json";
 const reelsRelativePath = "your_facebook_activity/reels/your_reels.json";
+const albumRelativeDirectory = "your_facebook_activity/posts/album";
+const albumFilenamePattern = /^(\d+)\.json$/;
 
 export class SourceDiscoveryError extends Error {
   readonly code: ValidationErrorCode;
@@ -140,13 +144,19 @@ export async function discoverTimelineSources(
         includeStateSources && entry.name === videosFilename;
       const isPhotoMetadata =
         includeStateSources && entry.name === photosFilename;
+      const isCheckinMetadata =
+        includeStateSources && entry.name === checkinsFilename;
+      const isSharingLinkMetadata =
+        includeStateSources && entry.name === sharingLinksFilename;
       if (
         !entry.isFile() ||
         (!match?.[1] &&
           !isArchive &&
           !isTrash &&
           !isVideoMetadata &&
-          !isPhotoMetadata)
+          !isPhotoMetadata &&
+          !isCheckinMetadata &&
+          !isSharingLinkMetadata)
       ) {
         continue;
       }
@@ -166,13 +176,22 @@ export async function discoverTimelineSources(
         exportRootNumber,
         relativePath: `${timelineRelativeDirectory}/${basename(candidate)}`,
         sequence:
-          isArchive || isTrash || isVideoMetadata || isPhotoMetadata
+          isArchive ||
+          isTrash ||
+          isVideoMetadata ||
+          isPhotoMetadata ||
+          isCheckinMetadata ||
+          isSharingLinkMetadata
             ? Number.MAX_SAFE_INTEGER
             : Number.parseInt(match?.[1] ?? "0", 10),
         sizeBytes: fileStats.size,
         sha256: await hashFile(candidate),
-        sourceKind: isPhotoMetadata
-          ? "photo_metadata"
+        sourceKind: isSharingLinkMetadata
+          ? "sharing_link_metadata"
+          : isCheckinMetadata
+          ? "checkin_metadata"
+          : isPhotoMetadata
+            ? "photo_metadata"
           : isVideoMetadata
             ? "video_metadata"
           : isTrash
@@ -184,6 +203,44 @@ export async function discoverTimelineSources(
     }
 
     if (includeStateSources) {
+      const albumDirectory = join(root, ...albumRelativeDirectory.split("/"));
+      try {
+        const albumEntries = await readdir(albumDirectory, {
+          withFileTypes: true,
+        });
+        for (const entry of albumEntries) {
+          const match = albumFilenamePattern.exec(entry.name);
+          if (!entry.isFile() || match?.[1] === undefined) continue;
+          const candidate = await realpath(join(albumDirectory, entry.name));
+          if (!isInsideRoot(root, candidate)) {
+            throw new SourceDiscoveryError(
+              "SOURCE_FILE_READ_FAILED",
+              `An album file in export root ${exportRootNumber} resolves outside the export root.`,
+              exportRootNumber,
+            );
+          }
+          const fileStats = await stat(candidate);
+          sourceFiles.push({
+            absolutePath: candidate,
+            exportRootNumber,
+            relativePath: `${albumRelativeDirectory}/${entry.name}`,
+            sequence: Number.parseInt(match[1], 10),
+            sizeBytes: fileStats.size,
+            sha256: await hashFile(candidate),
+            sourceKind: "album_metadata",
+          });
+        }
+      } catch (error) {
+        if (error instanceof SourceDiscoveryError) throw error;
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw new SourceDiscoveryError(
+            "SOURCE_FILE_READ_FAILED",
+            `The album directory in export root ${exportRootNumber} could not be read.`,
+            exportRootNumber,
+          );
+        }
+      }
+
       try {
         const candidate = await realpath(join(root, ...reelsRelativePath.split("/")));
         if (!isInsideRoot(root, candidate)) {
@@ -227,6 +284,9 @@ export async function discoverTimelineSources(
         reel: 3,
         video_metadata: 4,
         photo_metadata: 5,
+        album_metadata: 6,
+        checkin_metadata: 7,
+        sharing_link_metadata: 8,
       }[left.sourceKind] -
         {
           timeline: 0,
@@ -235,6 +295,9 @@ export async function discoverTimelineSources(
           reel: 3,
           video_metadata: 4,
           photo_metadata: 5,
+          album_metadata: 6,
+          checkin_metadata: 7,
+          sharing_link_metadata: 8,
         }[right.sourceKind]) ||
       left.sequence - right.sequence ||
       left.exportRootNumber - right.exportRootNumber ||

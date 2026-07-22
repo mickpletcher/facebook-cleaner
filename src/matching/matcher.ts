@@ -59,6 +59,7 @@ export class DeterministicMatcher {
   match(
     record: NormalizedTimelineRecord,
     fingerprintOccurrence: number,
+    enrichmentOnly = false,
   ): MatchResult {
     if (record.facebookPostId !== null) {
       const candidate = this.#singlePostBy(
@@ -129,9 +130,10 @@ export class DeterministicMatcher {
     if (
       record.normalizedPostText !== null &&
       record.normalizedPostText.length > 0 &&
-      this.#counts.timestampTextCounts.get(
-        timestampTextKey(record.createdTimestamp, record.normalizedPostText),
-      ) === 1
+      (enrichmentOnly ||
+        this.#counts.timestampTextCounts.get(
+          timestampTextKey(record.createdTimestamp, record.normalizedPostText),
+        ) === 1)
     ) {
       const textMatches = candidates.filter(
         (candidate) =>
@@ -150,7 +152,8 @@ export class DeterministicMatcher {
     if (
       candidates.length === 1 &&
       candidates[0] &&
-      this.#counts.timestampCounts.get(record.createdTimestamp) === 1 &&
+      (enrichmentOnly ||
+        this.#counts.timestampCounts.get(record.createdTimestamp) === 1) &&
       !this.#hasContradictoryEvidence(record, candidates[0])
     ) {
       return this.#existing(

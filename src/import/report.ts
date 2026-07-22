@@ -60,6 +60,9 @@ export function formatImportTerminalSummary(report: TimelineImportReport): strin
     `Reels files: ${report.reelFiles}`,
     `Video metadata files: ${report.videoMetadataFiles}`,
     `Photo metadata files: ${report.photoMetadataFiles}`,
+    `Album metadata files: ${report.albumMetadataFiles}`,
+    `Check-in metadata files: ${report.checkinMetadataFiles}`,
+    `Content-sharing-link metadata files: ${report.sharingLinkMetadataFiles}`,
     `Records examined: ${report.recordsExamined}`,
     `Existing records matched: ${report.recordsMatched}`,
     `Posts added: ${report.postsAdded}`,
@@ -75,6 +78,8 @@ export function formatImportTerminalSummary(report: TimelineImportReport): strin
     `Media records: ${report.mediaRecords}`,
     `Post-media relationships: ${report.postMediaRelationships}`,
     `Link records: ${report.linkRecords}`,
+    `Place records: ${report.placeRecords}`,
+    `Post-place relationships: ${report.postPlaceRelationships}`,
     `Database size: ${megabytes(report.databaseSizeBytes)} MB`,
     `Peak process memory: ${megabytes(report.peakRssBytes)} MB`,
     `Database integrity: ${report.databaseIntegrity}`,
@@ -88,7 +93,17 @@ export function formatImportTerminalSummary(report: TimelineImportReport): strin
   for (const [code, count] of Object.entries(report.errorCodeCounts).sort()) {
     lines.push(`Error code ${code}: ${count}`);
   }
-  for (const file of report.sourceFiles) {
+  const albumFiles = report.sourceFiles.filter(
+    (file) => file.sourceKind === "album_metadata",
+  );
+  if (albumFiles.length > 0) {
+    lines.push(
+      `Album metadata records: ${albumFiles.reduce((total, file) => total + (file.recordCount ?? 0), 0)} across ${albumFiles.length} files, ${albumFiles.reduce((total, file) => total + file.errorCount, 0)} errors`,
+    );
+  }
+  for (const file of report.sourceFiles.filter(
+    (item) => item.sourceKind !== "album_metadata",
+  )) {
     lines.push(
       `Root ${file.exportRootNumber}, ${file.relativePath}: ${file.recordCount ?? 0} records, ${file.parseStatus}, ${file.errorCount} errors`,
     );

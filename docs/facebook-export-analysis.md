@@ -290,6 +290,56 @@ Photo metadata enrichment was run against the 799 records in `your_uncategorized
 
 Independent reconciliation confirmed 23,028 canonical posts, 199 enriched media records, 349,272 source records, 3,217 skipped source observations across all enrichment runs, 346,055 matched post observations, and fifteen completed import runs. The final run reported `M09_UNMATCHED_ENRICHMENT: 1118`, including 327 video and 791 photo metadata records.
 
+## Album-Photo Metadata Import Result
+
+Album enrichment was run against 255 files containing 11,241 photo records on July 22, 2026.
+
+- All 255 album files parsed without errors.
+- 137 album photos matched canonical posts safely.
+- 83 matched by semantic fingerprint and occurrence slot.
+- 54 matched by timestamp and media reference.
+- Matched media received album name, description, last-modified timestamp, cover status, source file, ordinal, and photo metadata.
+- 11,104 unmatched album-photo records were skipped.
+- Album metadata created zero canonical posts.
+- The repeated import updated zero canonical posts.
+- Canonical post type and Facebook state counts remained unchanged.
+- Database integrity check returned `ok`.
+
+Independent reconciliation confirmed 23,028 canonical posts, 336 enriched media records, 420,452 source records, 27,661 skipped source observations across all enrichment runs, 392,791 matched post observations, and seventeen completed import runs. The final database size was 432.66 MB.
+
+## Check-In Enrichment Result
+
+Check-in enrichment was run against all 356 records in `check-ins.json` on July 22, 2026.
+
+- The check-in file parsed without errors.
+- All 356 check-ins matched existing canonical posts safely.
+- Four initially matched by timestamp and normalized text.
+- 352 initially matched by unique timestamp.
+- Matched records added confirmed Facebook post IDs and direct post URLs when previously unavailable.
+- The importer created 133 deduplicated place records and 356 post-place relationships.
+- Check-in metadata created zero canonical posts.
+- The repeated import updated zero canonical posts and created no duplicate places or relationships.
+- The repeat run matched all 356 check-ins by Facebook post ID.
+- Database integrity check returned `ok`.
+
+Independent reconciliation confirmed 23,028 canonical posts, 133 places, 356 post-place relationships, 492,344 source records, 52,087 skipped source observations across all enrichment runs, 440,257 matched post observations, and nineteen completed import runs. The final database size was 502.21 MB.
+
+## Content-Sharing-Link Enrichment Result
+
+Content-sharing-link enrichment was run against all 73 records in `content_sharing_links_you_have_created.json` on July 22, 2026.
+
+- The file parsed without errors.
+- Every record contained a timestamp, Facebook ID, and labeled shared URL.
+- Zero Facebook IDs matched canonical post IDs.
+- Zero records had an exact canonical-post timestamp candidate.
+- The exported `href` and display `value` normalized to the same URL for all 73 records.
+- All 73 records were retained as skipped enrichment provenance.
+- The importer created zero canonical posts and no unverified link relationships.
+- The repeated import updated zero canonical posts and created no duplicate links.
+- Database integrity check returned `ok`.
+
+Independent reconciliation confirmed 23,028 canonical posts, 564,382 source records, 76,659 skipped source observations across all enrichment runs, 487,723 matched post observations, and twenty-one completed import runs. The final database size was 571.17 MB.
+
 ## Data Model
 
 The proposed SQLite tables and deterministic matching rules are documented in `docs/sqlite-data-model.md`.

@@ -9,10 +9,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { importTimelineCollection } from "../../src/import/importer.js";
 import { InventoryDatabase } from "../../src/database/connection.js";
+import { formatImportTerminalSummary } from "../../src/import/report.js";
 
 const migrationsDirectory = resolve("migrations");
 const sanitizedFixture = resolve("tests/fixtures/sanitized-facebook-export");
@@ -33,8 +34,9 @@ function createExportRoot(files: Record<string, unknown>): string {
       name === "your_reels.json"
         ? join(root, "your_facebook_activity", "reels")
         : postsDirectory;
-    mkdirSync(directory, { recursive: true });
-    writeFileSync(join(directory, name), JSON.stringify(records), "utf8");
+    const filePath = join(directory, name);
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, JSON.stringify(records), "utf8");
   }
   return root;
 }
@@ -614,6 +616,256 @@ describe("primary timeline importer", () => {
     expect(second.recordsSkipped).toBe(1);
     expect(second.postsUpdated).toBe(0);
     expect(queryValue(databasePath, "SELECT COUNT(*) AS value FROM posts")).toBe(1);
+  });
+
+  it("enriches matched album photos and skips unmatched entries", async () => {
+    const root = createExportRoot({
+      "your_posts__check_ins__photos_and_videos_1.json": [
+        {
+          timestamp: 700,
+          data: [{ post: "Timeline album photo" }],
+          attachments: [
+            { data: [{ media: { uri: "media/matched-album-photo.jpg" } }] },
+          ],
+        },
+      ],
+      "album/0.json": {
+        name: "Sanitized album",
+        description: "Sanitized album description",
+        last_modified_timestamp: 702,
+        cover_photo: {
+          uri: "media/matched-album-photo.jpg",
+          creation_timestamp: 700,
+        },
+        photos: [
+          {
+            uri: "media/matched-album-photo.jpg",
+            creation_timestamp: 700,
+            media_metadata: { photo_metadata: { exif_data: [] } },
+          },
+          {
+            uri: "media/unmatched-album-photo.jpg",
+            creation_timestamp: 701,
+            media_metadata: { photo_metadata: { exif_data: [] } },
+          },
+        ],
+      },
+    });
+    const databasePath = join(createTemporaryDirectory(), "inventory.db");
+
+    const first = await importTimelineCollection({
+      exportPaths: [root],
+      databasePath,
+      migrationsDirectory,
+    });
+    expect(first).toMatchObject({
+      timelineFiles: 1,
+      albumMetadataFiles: 1,
+      recordsExamined: 3,
+      recordsMatched: 1,
+      postsAdded: 1,
+      postsUpdated: 1,
+      recordsSkipped: 1,
+      errorCount: 0,
+    });
+    expect(first.matchRuleCounts.M09_UNMATCHED_ENRICHMENT).toBe(1);
+    const terminalSummary = formatImportTerminalSummary(first);
+    expect(terminalSummary).toContain(
+      "Album metadata records: 2 across 1 files, 0 errors",
+    );
+    expect(terminalSummary).not.toContain("album/0.json");
+    expect(
+      queryValue(
+        databasePath,
+        `SELECT COUNT(*) AS value FROM media
+         WHERE json_extract(metadata_json, '$.facebook_cleaner_album.name') = 'Sanitized album'
+           AND json_extract(metadata_json, '$.facebook_cleaner_album.is_cover') = 1`,
+      ),
+    ).toBe(1);
+    expect(queryValue(databasePath, "SELECT COUNT(*) AS value FROM posts")).toBe(1);
+
+    const second = await importTimelineCollection({
+      exportPaths: [root],
+      databasePath,
+      migrationsDirectory,
+    });
+    expect(second.postsAdded).toBe(0);
+    expect(second.recordsMatched).toBe(2);
+    expect(second.recordsSkipped).toBe(1);
+    expect(second.postsUpdated).toBe(0);
+    expect(queryValue(databasePath, "SELECT COUNT(*) AS value FROM posts")).toBe(1);
+  });
+
+  it("enriches matched check-ins and skips unmatched entries", async () => {
+    const root = createExportRoot({
+      "your_posts__check_ins__photos_and_videos_1.json": [
+        {
+          timestamp: 800,
+          data: [{ post: "Sanitized check-in message" }],
+          attachments: [{ data: [{ place: { name: "Sanitized place" } }] }],
+        },
+      ],
+      "check-ins.json": [
+        {
+          timestamp: 800,
+          fbid: "800800",
+          label_values: [
+            { label: "Message", value: "Sanitized check-in message" },
+            { label: "Location", value: "Sanitized place" },
+            { label: "Place tags", dict: [{ name: "Sanitized place" }] },
+            { label: "URL", href: "https://www.facebook.com/800800" },
+          ],
+        },
+        {
+          timestamp: 801,
+          fbid: "801801",
+          label_values: [
+            { label: "Message", value: "Unmatched sanitized check-in" },
+            { label: "Location", value: "Different sanitized place" },
+            { label: "URL", href: "https://www.facebook.com/801801" },
+          ],
+        },
+      ],
+    });
+    const databasePath = join(createTemporaryDirectory(), "inventory.db");
+
+    const first = await importTimelineCollection({
+      exportPaths: [root],
+      databasePath,
+      migrationsDirectory,
+    });
+    expect(first).toMatchObject({
+      timelineFiles: 1,
+      checkinMetadataFiles: 1,
+      recordsExamined: 3,
+      recordsMatched: 1,
+      postsAdded: 1,
+      postsUpdated: 1,
+      recordsSkipped: 1,
+      errorCount: 0,
+      canonicalPosts: 1,
+      placeRecords: 1,
+      postPlaceRelationships: 1,
+    });
+    expect(first.matchRuleCounts.M09_UNMATCHED_ENRICHMENT).toBe(1);
+    expect(
+      queryValue(
+        databasePath,
+        "SELECT COUNT(*) AS value FROM posts WHERE facebook_post_id = '800800' AND direct_post_url = 'https://www.facebook.com/800800'",
+      ),
+    ).toBe(1);
+    expect(
+      queryValue(
+        databasePath,
+        "SELECT COUNT(*) AS value FROM places WHERE place_name = 'Sanitized place'",
+      ),
+    ).toBe(1);
+
+    const second = await importTimelineCollection({
+      exportPaths: [root],
+      databasePath,
+      migrationsDirectory,
+    });
+    expect(second).toMatchObject({
+      postsAdded: 0,
+      postsUpdated: 0,
+      recordsMatched: 2,
+      recordsSkipped: 1,
+      placeRecords: 1,
+      postPlaceRelationships: 1,
+    });
+  });
+
+  it("enriches matched content-sharing links and skips unmatched entries", async () => {
+    const root = createExportRoot({
+      "your_posts__check_ins__photos_and_videos_1.json": [
+        {
+          timestamp: 900,
+          attachments: [
+            {
+              data: [
+                {
+                  external_context: {
+                    url: "https://example.test/sanitized-shared-content",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      "content_sharing_links_you_have_created.json": [
+        {
+          timestamp: 900,
+          fbid: "900900",
+          media: [],
+          label_values: [
+            {
+              label: "URL",
+              href: "https://example.test/sanitized-shared-content",
+              value: "https://example.test/sanitized-shared-content",
+            },
+          ],
+        },
+        {
+          timestamp: 901,
+          fbid: "901901",
+          media: [],
+          label_values: [
+            {
+              label: "URL",
+              href: "https://example.test/unmatched-shared-content",
+              value: "https://example.test/unmatched-shared-content",
+            },
+          ],
+        },
+      ],
+    });
+    const databasePath = join(createTemporaryDirectory(), "inventory.db");
+
+    const first = await importTimelineCollection({
+      exportPaths: [root],
+      databasePath,
+      migrationsDirectory,
+    });
+    expect(first).toMatchObject({
+      timelineFiles: 1,
+      sharingLinkMetadataFiles: 1,
+      recordsExamined: 3,
+      recordsMatched: 1,
+      postsAdded: 1,
+      postsUpdated: 1,
+      recordsSkipped: 1,
+      errorCount: 0,
+      canonicalPosts: 1,
+      linkRecords: 1,
+    });
+    expect(first.matchRuleCounts.M09_UNMATCHED_ENRICHMENT).toBe(1);
+    expect(
+      queryValue(
+        databasePath,
+        "SELECT COUNT(*) AS value FROM posts WHERE facebook_post_id = '900900' AND direct_post_url IS NULL",
+      ),
+    ).toBe(1);
+    expect(
+      queryValue(
+        databasePath,
+        "SELECT COUNT(*) AS value FROM post_links WHERE normalized_url = 'https://example.test/sanitized-shared-content'",
+      ),
+    ).toBe(1);
+
+    const second = await importTimelineCollection({
+      exportPaths: [root],
+      databasePath,
+      migrationsDirectory,
+    });
+    expect(second).toMatchObject({
+      postsAdded: 0,
+      postsUpdated: 0,
+      recordsMatched: 2,
+      recordsSkipped: 1,
+      linkRecords: 1,
+    });
   });
 
   it("rolls back an entire canonical batch after a database failure", async () => {

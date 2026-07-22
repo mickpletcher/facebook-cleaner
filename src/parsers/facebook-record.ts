@@ -50,6 +50,8 @@ export interface NormalizedTimelineRecord {
   externalLinks: NormalizedExternalLink[];
   normalizedExternalUrls: string[];
   normalizedPlaceReference: string | null;
+  placeName: string | null;
+  placeMetadataJson: string | null;
   originalSourceName: string | null;
   originalSourceUrl: string | null;
   rawSha256: string;
@@ -238,6 +240,13 @@ export function normalizeTimelineRecord(
       : uniquePlaceReferences.length === 1
         ? uniquePlaceReferences[0] ?? null
         : canonicalJson(uniquePlaceReferences);
+  const firstPlace = items.find((item) => isRecord(item.place))?.place;
+  const placeName =
+    isRecord(firstPlace) && typeof firstPlace.name === "string"
+      ? firstPlace.name
+      : isRecord(firstPlace) && typeof firstPlace.location === "string"
+        ? firstPlace.location
+        : null;
   const postType = derivePostType(
     sourceKind,
     mediaKinds,
@@ -264,6 +273,8 @@ export function normalizeTimelineRecord(
     externalLinks,
     normalizedExternalUrls,
     normalizedPlaceReference,
+    placeName,
+    placeMetadataJson: normalizedPlaceReference,
     originalSourceName:
       externalLinks.find((link) => link.sourceName !== null)?.sourceName ?? null,
     originalSourceUrl: externalLinks[0]?.originalUrl ?? null,

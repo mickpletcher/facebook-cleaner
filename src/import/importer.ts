@@ -21,6 +21,8 @@ import {
   normalizePhotoRecord,
   normalizeVideoRecord,
 } from "../parsers/video-record.js";
+import { normalizeCheckinRecord } from "../parsers/checkin-record.js";
+import { normalizeSharingLinkRecord } from "../parsers/sharing-link-record.js";
 import { streamTimelineRecords } from "../parsers/timeline.js";
 import { discoverTimelineSources } from "./source-discovery.js";
 import type {
@@ -70,10 +72,25 @@ type SourceKind =
   | "trash"
   | "reel"
   | "video_metadata"
-  | "photo_metadata";
+  | "photo_metadata"
+  | "album_metadata"
+  | "checkin_metadata"
+  | "sharing_link_metadata";
 
 function isMediaMetadataSource(sourceKind: SourceKind): boolean {
-  return sourceKind === "video_metadata" || sourceKind === "photo_metadata";
+  return (
+    sourceKind === "video_metadata" ||
+    sourceKind === "photo_metadata" ||
+    sourceKind === "album_metadata"
+  );
+}
+
+function isEnrichmentSource(sourceKind: SourceKind): boolean {
+  return (
+    isMediaMetadataSource(sourceKind) ||
+    sourceKind === "checkin_metadata" ||
+    sourceKind === "sharing_link_metadata"
+  );
 }
 
 function normalizeSourceRecord(
@@ -85,6 +102,11 @@ function normalizeSourceRecord(
   if (sourceKind === "reel") return normalizeTimelineRecord(value, "reel");
   if (sourceKind === "video_metadata") return normalizeVideoRecord(value);
   if (sourceKind === "photo_metadata") return normalizePhotoRecord(value);
+  if (sourceKind === "album_metadata") return normalizePhotoRecord(value);
+  if (sourceKind === "checkin_metadata") return normalizeCheckinRecord(value);
+  if (sourceKind === "sharing_link_metadata") {
+    return normalizeSharingLinkRecord(value);
+  }
   return normalizeTimelineRecord(value);
 }
 
@@ -468,6 +490,45 @@ function insertMediaAndLinks(
   return changed;
 }
 
+function insertPlace(
+  database: DatabaseSync,
+  postId: number,
+  record: NormalizedTimelineRecord,
+  now: string,
+): boolean {
+  if (
+    record.normalizedPlaceReference === null ||
+    record.placeMetadataJson === null
+  ) {
+    return false;
+  }
+  const placeFingerprint = sha256(record.normalizedPlaceReference);
+  const insertedPlace = database
+    .prepare(`
+      INSERT OR IGNORE INTO places(place_fingerprint, place_name, metadata_json)
+      VALUES (?, ?, ?)
+    `)
+    .run(placeFingerprint, record.placeName, record.placeMetadataJson).changes;
+  const place = database
+    .prepare("SELECT place_id FROM places WHERE place_fingerprint = ?")
+    .get(placeFingerprint);
+  if (place === undefined) throw new Error("Matched place does not exist.");
+  const insertedRelationship = database
+    .prepare(`
+      INSERT OR IGNORE INTO post_places(
+        post_id, place_id, first_collected_at_utc, last_collected_at_utc
+      ) VALUES (?, ?, ?, ?)
+    `)
+    .run(postId, Number(place.place_id), now, now).changes;
+  database
+    .prepare(`
+      UPDATE post_places SET last_collected_at_utc = ?
+      WHERE post_id = ? AND place_id = ?
+    `)
+    .run(now, postId, Number(place.place_id));
+  return insertedPlace > 0 || insertedRelationship > 0;
+}
+
 function createPost(
   database: DatabaseSync,
   profileId: string,
@@ -547,7 +608,7 @@ function updatePost(
   const preserveReelCanonical =
     current.post_type === "reel" && sourceKind !== "reel";
   const preserveCanonicalIdentity =
-    preserveReelCanonical || isMediaMetadataSource(sourceKind);
+    preserveReelCanonical || isEnrichmentSource(sourceKind);
   const nextPostText = preserveCanonicalIdentity
     ? current.post_text === null
       ? null
@@ -596,7 +657,7 @@ function updatePost(
   const nextPostType =
     preserveReelCanonical
       ? "reel"
-      : isMediaMetadataSource(sourceKind)
+      : isEnrichmentSource(sourceKind)
         ? String(current.post_type)
       : record.postType === "unknown"
         ? String(current.post_type)
@@ -701,7 +762,10 @@ function matchSourceRecords(
                  WHEN 'trash' THEN 2
                  WHEN 'reel' THEN 3
                  WHEN 'video_metadata' THEN 4
-                 ELSE 5
+                 WHEN 'photo_metadata' THEN 5
+                 WHEN 'album_metadata' THEN 6
+                 WHEN 'checkin_metadata' THEN 7
+                 ELSE 8
                END,
                source_records.semantic_fingerprint,
                source_records.raw_sha256,
@@ -763,13 +827,17 @@ function matchSourceRecords(
         JSON.parse(String(source.raw_json)),
         sourceKind,
       );
-      const match = matcher.match(normalized, fingerprintOccurrence);
+      const match = matcher.match(
+        normalized,
+        fingerprintOccurrence,
+        isEnrichmentSource(sourceKind),
+      );
       const now = new Date().toISOString();
       let postId: number;
       let changed: boolean;
 
       if (match.shouldCreate) {
-        if (isMediaMetadataSource(sourceKind)) {
+        if (isEnrichmentSource(sourceKind)) {
           updateMatchStatus.run("skipped", sourceRecordId);
           counters.recordsSkipped += 1;
           recordsInTransaction += 1;
@@ -820,6 +888,14 @@ function matchSourceRecords(
         }
         counters.recordsMatched += 1;
         updateMatchStatus.run("matched", sourceRecordId);
+      }
+
+      if (
+        sourceKind === "checkin_metadata" &&
+        insertPlace(database, postId, normalized, now)
+      ) {
+        changed = true;
+        counters.updatedPostIds.add(postId);
       }
 
       insertObservation.run(
@@ -892,7 +968,10 @@ function reconcileRunMetrics(
     `SELECT COUNT(*) AS value
      FROM source_records JOIN source_files USING(source_file_id)
      WHERE source_files.import_run_id = ?
-       AND source_records.source_kind IN ('video_metadata', 'photo_metadata')
+       AND source_records.source_kind IN (
+         'video_metadata', 'photo_metadata', 'album_metadata', 'checkin_metadata',
+         'sharing_link_metadata'
+       )
        AND source_records.match_status = 'skipped'`,
     importRunId,
   );
@@ -1086,6 +1165,15 @@ function buildImportReport(
     photoMetadataFiles: sourceFiles.filter(
       (file) => file.sourceKind === "photo_metadata",
     ).length,
+    albumMetadataFiles: sourceFiles.filter(
+      (file) => file.sourceKind === "album_metadata",
+    ).length,
+    checkinMetadataFiles: sourceFiles.filter(
+      (file) => file.sourceKind === "checkin_metadata",
+    ).length,
+    sharingLinkMetadataFiles: sourceFiles.filter(
+      (file) => file.sourceKind === "sharing_link_metadata",
+    ).length,
     recordsExamined: metrics.recordsExamined,
     recordsMatched: metrics.recordsMatched,
     postsAdded: metrics.postsAdded,
@@ -1129,6 +1217,11 @@ function buildImportReport(
       "SELECT COUNT(*) AS value FROM post_media",
     ),
     linkRecords: numberValue(database, "SELECT COUNT(*) AS value FROM post_links"),
+    placeRecords: numberValue(database, "SELECT COUNT(*) AS value FROM places"),
+    postPlaceRelationships: numberValue(
+      database,
+      "SELECT COUNT(*) AS value FROM post_places",
+    ),
     postTypeCounts,
     matchRuleCounts: metrics.matchRuleCounts,
     errorCodeCounts,

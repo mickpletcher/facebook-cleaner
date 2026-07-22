@@ -20,6 +20,7 @@ The importer will not connect to Facebook, modify Facebook, classify posts, prov
 - Milestone 7.3, reels source support: completed July 22, 2026.
 - Milestone 7.4, video metadata enrichment: completed July 22, 2026.
 - Milestone 7.5, uncategorized-photo metadata enrichment: completed July 22, 2026.
+- Milestone 7.6, album-photo metadata enrichment: completed July 22, 2026.
 
 ## Verified Local Toolchain
 
@@ -375,7 +376,7 @@ Each source requires:
 - Record-count reconciliation.
 - Confirmation that repeated import adds no duplicates.
 
-Archive, trash, reels, video metadata, and uncategorized-photo metadata support are complete. Archive, trash, and reels are authoritative sources whose unmatched entries may create canonical posts. Video and uncategorized-photo metadata are enrichment only: matched records can update media metadata, while unmatched records are skipped. Confirmed trash evidence takes precedence over archived, active, or unknown state. Reel classification and reel canonical identity take precedence over less-specific sources. The next source is album metadata.
+Archive, trash, reels, video metadata, uncategorized-photo metadata, album-photo metadata, check-in enrichment, and content-sharing-link enrichment are complete. Archive, trash, and reels are authoritative sources whose unmatched entries may create canonical posts. The remaining implemented secondary sources are enrichment only. Matched check-ins can add confirmed IDs, direct post URLs, media, and deduplicated place relationships. Matched content-sharing-link records can add confirmed IDs and shared-content URLs without misclassifying those URLs as direct Facebook post URLs. Unmatched enrichment records are skipped. Confirmed trash evidence takes precedence over archived, active, or unknown state. Reel classification and reel canonical identity take precedence over less-specific sources. The next source is referenced supplemental media.
 
 ## Error Codes
 

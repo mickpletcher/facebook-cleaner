@@ -30,7 +30,10 @@ export interface DiscoveredSourceFile {
     | "trash"
     | "reel"
     | "video_metadata"
-    | "photo_metadata";
+    | "photo_metadata"
+    | "album_metadata"
+    | "checkin_metadata"
+    | "sharing_link_metadata";
 }
 
 export interface DiscoveredCollection {
@@ -111,6 +114,9 @@ export interface TimelineImportReport {
   reelFiles: number;
   videoMetadataFiles: number;
   photoMetadataFiles: number;
+  albumMetadataFiles: number;
+  checkinMetadataFiles: number;
+  sharingLinkMetadataFiles: number;
   recordsExamined: number;
   recordsMatched: number;
   postsAdded: number;
@@ -128,6 +134,8 @@ export interface TimelineImportReport {
   mediaRecords: number;
   postMediaRelationships: number;
   linkRecords: number;
+  placeRecords: number;
+  postPlaceRelationships: number;
   postTypeCounts: Record<string, number>;
   matchRuleCounts: Record<string, number>;
   errorCodeCounts: Record<string, number>;

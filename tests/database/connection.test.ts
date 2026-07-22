@@ -31,14 +31,14 @@ afterEach(() => {
 });
 
 describe("InventoryDatabase", () => {
-  it("applies the initial migration and required SQLite settings", () => {
+  it("applies all migrations and required SQLite settings", () => {
     const inventory = InventoryDatabase.open({
       databasePath: createTemporaryDatabasePath(),
       migrationsDirectory,
     });
 
     try {
-      expect(inventory.migrationsApplied).toBe(1);
+      expect(inventory.migrationsApplied).toBe(2);
 
       const tables = inventory.database
         .prepare(`
@@ -59,8 +59,10 @@ describe("InventoryDatabase", () => {
           "post_links",
           "post_media",
           "post_observations",
+          "post_places",
           "post_state_observations",
           "posts",
+          "places",
           "profiles",
           "schema_metadata",
           "schema_migrations",
@@ -92,7 +94,7 @@ describe("InventoryDatabase", () => {
           .all()
           .map((row) => [String(row.key), String(row.value)]),
       );
-      expect(metadata.get("schema_version")).toBe("1");
+      expect(metadata.get("schema_version")).toBe("2");
       expect(metadata.get("identity_version")).toBe("1");
       expect(metadata.get("application_version")).toBe("0.1.0");
       expect(metadata.get("created_at_utc")).toBeTruthy();
@@ -113,7 +115,7 @@ describe("InventoryDatabase", () => {
         second.database
           .prepare("SELECT COUNT(*) AS count FROM schema_migrations")
           .get()?.count,
-      ).toBe(1);
+      ).toBe(2);
     } finally {
       second.close();
     }

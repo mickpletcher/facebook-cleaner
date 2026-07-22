@@ -14,6 +14,9 @@ Implemented and verified:
 - Reels.
 - Video metadata enrichment.
 - Uncategorized-photo metadata enrichment.
+- Album-photo metadata enrichment.
+- Check-in enrichment with deduplicated place relationships.
+- Content-sharing-link enrichment.
 - Deterministic duplicate matching.
 - Repeatable, idempotent imports.
 - Sanitized JSON reports.
@@ -21,9 +24,6 @@ Implemented and verified:
 
 Not implemented yet:
 
-- Album metadata and album-photo enrichment.
-- Check-in enrichment beyond the primary timeline representation.
-- Content-sharing-link enrichment beyond primary timeline links.
 - A review interface.
 - CSV export for manual review.
 - Facebook deletion or modification.
@@ -53,6 +53,9 @@ The supplied path must be the root of an extracted Facebook JSON export. The imp
 | Reels | `your_facebook_activity/reels/your_reels.json` | Authoritative. Matches existing posts or creates unmatched reels. |
 | Videos | `your_facebook_activity/posts/your_videos.json` | Enrichment only. Updates safely matched media metadata and skips unmatched records. |
 | Uncategorized photos | `your_facebook_activity/posts/your_uncategorized_photos.json` | Enrichment only. Updates safely matched media metadata and skips unmatched records. |
+| Album photos | `your_facebook_activity/posts/album/*.json` | Enrichment only. Adds album context to safely matched media and skips unmatched records. |
+| Check-ins | `your_facebook_activity/posts/check-ins.json` | Enrichment only. Adds confirmed post IDs, direct post URLs, media, and deduplicated place relationships to safe matches. Skips unmatched records. |
+| Content-sharing links | `your_facebook_activity/posts/content_sharing_links_you_have_created.json` | Enrichment only. Adds confirmed post IDs and shared-content links to safe matches. Skips unmatched records. Shared URLs are not treated as direct Facebook post URLs. |
 
 Other Facebook files are currently ignored. Unreferenced media files do not create posts.
 
@@ -216,6 +219,7 @@ The SQLite database stores:
 - Audience status when available. Current exports do not map an audience to each post, so this usually remains unavailable.
 - Original source name and URL for shared content when available.
 - Media references and safely matched metadata.
+- Deduplicated places and post-to-place relationships from safely matched check-ins.
 - Facebook state: active, archived, trash, or unknown.
 - First-collected, last-collected, and verification timestamps.
 - Source file and record-index provenance.
@@ -240,7 +244,7 @@ The importer evaluates matching evidence in this order:
 
 The importer does not merge an ambiguous record. It records the ambiguity for review.
 
-Source processing precedence is primary timeline, archive, trash, reels, video metadata, then uncategorized-photo metadata. Confirmed trash state cannot be downgraded by another supported source. Reel classification and canonical reel identity cannot be downgraded by less-specific metadata.
+Source processing precedence is primary timeline, archive, trash, reels, video metadata, uncategorized-photo metadata, album metadata, check-in metadata, then content-sharing-link metadata. Confirmed trash state cannot be downgraded by another supported source. Reel classification and canonical reel identity cannot be downgraded by less-specific metadata.
 
 See [docs/sqlite-data-model.md](docs/sqlite-data-model.md) for the complete identity contract and acceptance tests.
 
@@ -256,10 +260,12 @@ The current import report uses schema version 2. It contains:
 - Records examined, matched, created, updated, ambiguous, skipped, and failed.
 - Canonical post count and date range.
 - Missing Facebook ID, direct URL, and audience totals.
-- Post-type, media, relationship, and link totals.
+- Post-type, media, link, place, and relationship totals.
 - Deterministic matching-rule counts.
 - Stable error-code counts.
 - Up to 100 sanitized issue locations using export-root number, relative path, and record index.
+
+The terminal summary collapses album-file details into one aggregate line. The JSON report retains the result for every album file.
 
 The report intentionally excludes full post text, personal names, personal URLs, and absolute export paths. It is still best to keep reports private because aggregate activity information may be sensitive.
 
@@ -326,7 +332,11 @@ Only aggregate results are documented. No private content is stored in this repo
 - 449 videos.
 - 16 confirmed archived posts.
 - One confirmed trash post.
-- 199 media records enriched from secondary metadata.
+- 336 media records enriched from secondary metadata.
+- 137 matched media records include album name, description, last-modified timestamp, cover status, source file, and album ordinal.
+- 356 check-ins safely matched existing posts.
+- 133 deduplicated places and 356 post-to-place relationships.
+- 73 content-sharing-link records parsed and retained as skipped provenance because none had a deterministic canonical-post match.
 - Zero duplicate posts added on the latest repeat import.
 - Database integrity: `ok`.
 

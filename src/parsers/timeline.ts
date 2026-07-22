@@ -231,6 +231,44 @@ export async function* streamTimelineRecords(
     }
     return;
   }
+  if (source.sourceKind === "album_metadata" && firstCharacter === "{") {
+    const value = JSON.parse(await readFile(source.absolutePath, "utf8")) as unknown;
+    if (!isRecord(value) || !Array.isArray(value.photos)) {
+      throw new Error("The album file must contain a photos array.");
+    }
+    const album = value;
+    const records = album.photos as unknown[];
+    const coverUri =
+      isRecord(album.cover_photo) && typeof album.cover_photo.uri === "string"
+        ? album.cover_photo.uri
+        : null;
+    for (const [recordIndex, record] of records.entries()) {
+      if (!isRecord(record)) {
+        yield { recordIndex, value: record };
+        continue;
+      }
+      yield {
+        recordIndex,
+        value: {
+          ...record,
+          facebook_cleaner_album: {
+            source_relative_path: source.relativePath,
+            ordinal: recordIndex,
+            name: typeof album.name === "string" ? album.name : null,
+            description:
+              typeof album.description === "string" ? album.description : null,
+            last_modified_timestamp: Number.isSafeInteger(
+              album.last_modified_timestamp,
+            )
+              ? Number(album.last_modified_timestamp)
+              : null,
+            is_cover: coverUri !== null && record.uri === coverUri,
+          },
+        },
+      };
+    }
+    return;
+  }
   if (source.sourceKind === "trash" && firstCharacter === "{") {
     yield {
       recordIndex: 0,

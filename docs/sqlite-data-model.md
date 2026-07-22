@@ -57,6 +57,8 @@ erDiagram
     posts ||--o{ post_media : contains
     media ||--o{ post_media : referenced_by
     posts ||--o{ post_links : shares
+    posts ||--o{ post_places : checked_in_at
+    places ||--o{ post_places : referenced_by
     posts ||--o{ post_state_observations : has
     source_records ||--o{ post_state_observations : supports
     import_runs ||--o{ import_errors : reports
@@ -268,6 +270,30 @@ Preserves evidence for active, archived, and trash states.
 | `observed_at_utc` | TEXT | Import time unless Facebook provides a state timestamp. |
 | `is_confirmed` | INTEGER | Required boolean. |
 
+### `places`
+
+Stores normalized check-in place metadata once.
+
+| Column | Type | Rules |
+| --- | --- | --- |
+| `place_id` | INTEGER | Primary key. |
+| `place_fingerprint` | TEXT | Required SHA-256. Unique. |
+| `place_name` | TEXT | Nullable exported place name. |
+| `metadata_json` | TEXT | Required valid JSON containing the normalized exported place structure. |
+
+### `post_places`
+
+Maps safely matched canonical posts to deduplicated places.
+
+| Column | Type | Rules |
+| --- | --- | --- |
+| `post_id` | INTEGER | Required foreign key. |
+| `place_id` | INTEGER | Required foreign key. |
+| `first_collected_at_utc` | TEXT | Required and immutable. |
+| `last_collected_at_utc` | TEXT | Required and refreshed when observed again. |
+
+The primary key is `(post_id, place_id)`.
+
 ### `import_errors`
 
 | Column | Type | Rules |
@@ -295,6 +321,8 @@ At minimum:
 - `source_records(created_timestamp, semantic_fingerprint)`
 - `post_links(normalized_url)`
 - `media(relative_uri)`
+- `places(place_name)`
+- `post_places(place_id)`
 - `import_errors(import_run_id, error_code)`
 
 Full-text search is outside the initial population phase. An FTS5 table may be added later without changing canonical identity.

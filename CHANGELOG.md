@@ -27,6 +27,15 @@ Every functional, database, matching, reporting, privacy, test, and documentatio
 - Added reel identity precedence over less-specific timeline representations.
 - Added video metadata enrichment from `your_videos.json`.
 - Added uncategorized-photo metadata enrichment from `your_uncategorized_photos.json`.
+- Added album-photo metadata enrichment from 255 numbered `album/*.json` files.
+- Added album name, description, last-modified timestamp, cover status, source-file provenance, and ordinal metadata to safely matched album media.
+- Added enrichment-only import for `check-ins.json` that safely matches existing posts and skips unmatched check-ins.
+- Added confirmed Facebook post ID, direct post URL, media, and place enrichment from matched check-ins.
+- Added migration 002 with deduplicated `places` and `post_places` relationship tables.
+- Added check-in file, place, and post-place relationship totals to sanitized reports.
+- Added enrichment-only import for `content_sharing_links_you_have_created.json`.
+- Added confirmed Facebook post IDs and shared-content links to safely matched posts while preserving the distinction between shared URLs and direct Facebook post URLs.
+- Added content-sharing-link file totals to sanitized reports.
 - Added enrichment-only handling that skips unmatched media metadata without creating posts.
 - Added media type, creation timestamp, and metadata storage for safely matched media.
 - Added sanitized JSON collection reports and concise terminal summaries.
@@ -50,14 +59,17 @@ Every functional, database, matching, reporting, privacy, test, and documentatio
 - Changed the supported import set incrementally from primary timeline only to timeline, archive, trash, reels, video metadata, and uncategorized-photo metadata.
 - Changed archive, trash, and reels to authoritative sources that may create unmatched canonical posts.
 - Changed video and uncategorized-photo sources to enrichment-only sources.
-- Changed the importer to process source kinds in precedence order: timeline, archive, trash, reels, video metadata, then photo metadata.
+- Changed the importer to process source kinds in precedence order: timeline, archive, trash, reels, video metadata, photo metadata, album metadata, check-in metadata, then content-sharing-link metadata.
+- Allowed enrichment-only records to use unique canonical timestamp-and-text or timestamp evidence without being blocked by overlapping source-record counts.
 - Changed repeated imports to preserve reel canonical identity when timeline captions or fingerprints differ.
 - Expanded import reporting with database reconciliation and per-source totals.
 - Expanded terminal output with source-kind file counts and M09 skipped-enrichment totals.
+- Collapsed hundreds of album-file terminal lines into one album aggregate while retaining every per-file result in the JSON report.
 - Updated the README and project documents after each completed source milestone.
 
 ### Fixed
 
+- Fixed strict TypeScript narrowing for parsed album objects before reading album metadata fields.
 - Fixed report-construction argument ordering during expanded reporting implementation.
 - Fixed failed database batches so they return a sanitized failed-run report while preserving transaction rollback.
 - Fixed command exit codes so failed imports return 1 and completed imports with errors return 2.
@@ -68,6 +80,8 @@ Every functional, database, matching, reporting, privacy, test, and documentatio
 - Restored 142 private inventory records temporarily misclassified as reels during validation of the video metadata precedence fix.
 - Added regression coverage confirming video metadata cannot convert videos into reels.
 - Fixed report source counts so timeline, archive, trash, reels, video metadata, and photo metadata files are reported separately.
+- Added idempotence coverage proving repeated check-in imports do not duplicate posts, places, or relationships.
+- Added discovery, matching, URL classification, unmatched-record, and idempotence coverage for content-sharing-link enrichment.
 
 ### Security
 
@@ -89,7 +103,13 @@ Every functional, database, matching, reporting, privacy, test, and documentatio
 - Imported 49 reels, including four matches and 45 newly discovered posts.
 - Enriched 191 media records from 518 video metadata records and skipped 327 unmatched records.
 - Enriched eight additional media records from 799 uncategorized-photo records and skipped 791 unmatched records.
+- Enriched 137 additional media records from 11,241 album-photo records across 255 files and skipped 11,104 unmatched records.
+- Safely matched all 356 check-in records without creating canonical posts.
+- Added 133 deduplicated places and 356 post-place relationships from matched check-ins.
+- Parsed all 73 content-sharing-link records and safely skipped all 73 because the export supplied no deterministic canonical-post match.
+- Confirmed content-sharing-link enrichment added zero posts, changed zero posts, and added no unverified link relationships.
 - Confirmed 23,028 canonical posts after the current source set.
+- Confirmed 336 media records contain secondary enrichment metadata.
 - Confirmed 49 reels, 449 videos, 16 archived posts, and one trash post.
 - Confirmed repeated imports add no duplicates.
 - Confirmed database integrity returns `ok`.
