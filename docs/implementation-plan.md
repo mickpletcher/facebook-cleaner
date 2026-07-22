@@ -2,9 +2,9 @@
 
 ## Goal
 
-Build a local, read-only TypeScript command-line tool that imports the supported Facebook JSON export files into SQLite, prevents duplicate posts, and produces a collection report.
+Build a local TypeScript tool that inventories every record and file supplied in a Facebook information export and eventually supports explicitly reviewed actions for data the user can control. The implemented importer remains read-only and currently covers the approved post sources only.
 
-The importer will not connect to Facebook, modify Facebook, classify posts, provide a review interface, or remove content.
+The current importer will not connect to or modify Facebook. Comment, reaction, group-activity, review, and removal features are separate future milestones.
 
 ## Progress
 
@@ -21,6 +21,8 @@ The importer will not connect to Facebook, modify Facebook, classify posts, prov
 - Milestone 7.4, video metadata enrichment: completed July 22, 2026.
 - Milestone 7.5, uncategorized-photo metadata enrichment: completed July 22, 2026.
 - Milestone 7.6, album-photo metadata enrichment: completed July 22, 2026.
+- Milestone 7.7, check-in enrichment: completed July 22, 2026.
+- Milestone 7.8, content-sharing-link enrichment: completed July 22, 2026.
 
 ## Verified Local Toolchain
 
@@ -377,6 +379,40 @@ Each source requires:
 - Confirmation that repeated import adds no duplicates.
 
 Archive, trash, reels, video metadata, uncategorized-photo metadata, album-photo metadata, check-in enrichment, and content-sharing-link enrichment are complete. Archive, trash, and reels are authoritative sources whose unmatched entries may create canonical posts. The remaining implemented secondary sources are enrichment only. Matched check-ins can add confirmed IDs, direct post URLs, media, and deduplicated place relationships. Matched content-sharing-link records can add confirmed IDs and shared-content URLs without misclassifying those URLs as direct Facebook post URLs. Unmatched enrichment records are skipped. Confirmed trash evidence takes precedence over archived, active, or unknown state. Reel classification and reel canonical identity take precedence over less-specific sources. The next source is referenced supplemental media.
+
+## Milestone 8: Complete Export Inventory
+
+Inventory every supplied export category without modifying Facebook:
+
+1. Design optional database encryption with explicit `unencrypted` and `encrypted` modes, secure key acquisition, fail-closed behavior, conversion and recovery procedures, Windows file permissions, OneDrive access, backups, reports, and temporary-file protection before importing highly sensitive categories.
+2. Recursively discover and classify every export file across every supplied root.
+3. Import comments and replies written by the user as entities separate from posts.
+4. Import reactions and likes made by the user as entities separate from posts.
+5. Import user-created posts, comments, replies, media, and reactions with profile, Page, and group context.
+6. Cover the user's activity on the user's profile, other profiles, Pages, and groups.
+7. Store limited target context for content created by other people.
+8. Inventory messages, connections, personal information, preferences, ads, apps, off-Facebook activity, searches, locations, login history, devices, sessions, security records, and administration data.
+9. Catalog every exported binary file using metadata, availability, and SHA-256 without placing binary contents in SQLite.
+10. Preserve raw structured records and source provenance while adding normalized category-specific tables.
+11. Reconcile discovered files and records so unsupported structures remain visible rather than silently ignored.
+12. Determine removal eligibility and limitation reasons from available IDs, URLs, permissions, ownership, and target availability.
+
+Sensitive categories are included in the private database but excluded from terminal output, sanitized reports, fixtures, documentation details, and the Git repository.
+
+## Milestone 9: Review and Removal
+
+Design and implement only after Milestone 8 data quality is verified:
+
+1. Filter and review posts, comments, and reactions.
+2. Build an explicit removal queue.
+3. Preview exact targets and proposed actions.
+4. Require confirmation before execution.
+5. Delete selected comments and replies and remove selected reactions.
+6. Archive, trash, or delete selected posts when supported.
+7. Record every attempted action and sanitized result.
+8. Verify the resulting Facebook state.
+
+No import record may trigger a removal automatically. Activity without a reliable target identifier or URL is ineligible for automated removal. The review system must still display ineligible records and explain whether the limitation is missing evidence, inaccessible content, insufficient permission, or unsupported Facebook behavior.
 
 ## Error Codes
 

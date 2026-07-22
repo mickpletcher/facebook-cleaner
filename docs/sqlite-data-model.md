@@ -2,7 +2,9 @@
 
 ## Status
 
-This document defines the approved design target for the initial read-only inventory. It is not an implementation or migration file.
+This document defines the implemented post-inventory model and the approved direction for a complete Facebook-export inventory. It is not an implementation or migration file.
+
+Comments and reactions must not be inserted into `posts`. Future migrations will add separate activity entities after the relevant export files are analyzed and deterministic identity rules are approved.
 
 The design is based on the Facebook export inspected on July 21, 2026. The export contains 22,966 primary timeline records. Of those records:
 
@@ -528,3 +530,42 @@ The implementation must prove:
 ## Decision
 
 This design favors false negatives over false merges. An unresolved duplicate can be examined later. An incorrect merge can permanently hide a legitimate post from the inventory and is therefore the higher-risk failure.
+
+## Future Activity Model Requirements
+
+The expanded project scope requires universal export-file and raw-record provenance plus normalized tables for comments, replies, reactions, messages, connections, personal information, preferences, advertising, apps, off-Facebook activity, searches, locations, logins, devices, sessions, security events, administration activity, media files, activity targets, content surfaces, removal queues, removal attempts, and verification observations. Exact columns and constraints will be designed after export analysis.
+
+The future model must preserve these boundaries:
+
+- A comment or reaction is never a canonical post.
+- Ownership follows user authorship or interaction, not whether content appears on the user's profile, another profile, a Page, or a group.
+- Content created by another person is limited target context, not user-owned content.
+- Every activity retains source-file and source-record provenance.
+- Removal eligibility requires a reliable target identifier or URL.
+- Ineligible activity remains queryable with a specific limitation reason.
+- Importing an activity never queues or performs a removal.
+- Removal requests require explicit user selection and confirmation.
+- Every attempted action has an immutable result record.
+- Successful removal requires later verification rather than assumption.
+- Every discovered export file receives a terminal inventory status, even when its structure is unsupported.
+- Every structured record retains its raw canonical JSON and source location.
+- Binary files are represented by metadata and hashes rather than SQLite BLOB values.
+- Inventory ownership and removal ownership are separate concepts.
+- Highly sensitive categories never appear in sanitized reports or fixtures.
+
+## Optional Database Encryption Requirements
+
+Database encryption is optional and is not implemented by the current Node built-in SQLite connection.
+
+The future design must support:
+
+- An explicit `unencrypted` mode compatible with the current database.
+- An explicit `encrypted` mode backed by a verified encrypted-SQLite provider.
+- No automatic downgrade from encrypted to unencrypted mode.
+- No key or passphrase storage in SQLite metadata, reports, logs, lock files, Git-tracked configuration, or command-line arguments.
+- Secure interactive or Windows-managed key retrieval.
+- A recovery-key procedure that is documented and tested before encrypted mode is accepted.
+- Explicit, verified conversion between modes using a new destination database and integrity checks.
+- OneDrive backup instructions that account for encrypted database recovery.
+
+The schema may store the selected mode and encryption-provider identifier, but never secret material.

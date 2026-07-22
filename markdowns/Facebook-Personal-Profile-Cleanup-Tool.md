@@ -2,22 +2,57 @@
 
 ## Project Status
 
-This document defines the approved scope for the initial project phase. The primary timeline importer is implemented and has populated the local SQLite inventory. Secondary export sources and read-only Facebook enrichment remain future work.
+This document defines the approved project scope. The post inventory is implemented and populated. Full-export inventory, activity control, review, and removal workflows are approved future phases.
 
 ## Project Goal
 
-Build a local, read-only tool that creates and maintains a complete inventory of posts from the user's personal Facebook profile.
+Build a local tool that inventories everything Facebook includes in the user's supplied information export and gives the user the fullest practical control over removable content, interactions, settings, and data.
 
-The inventory will be stored in a local SQLite database located in a user-selected OneDrive folder. The tool will collect available post information without changing any Facebook content or settings.
+The tool cannot claim to contain everything Facebook holds internally. Its completeness boundary is the files Facebook supplies in the selected export plus any separately approved and verified enrichment source.
 
-The initial phase is limited to populating and maintaining the database. Reviewing, classifying, archiving, trashing, or deleting posts is not part of this phase.
+The inventory will be stored in a local SQLite database located in a user-selected OneDrive folder. Collection will gather available activity information without changing any Facebook content or settings.
 
-## Initial Content Scope
+Collection remains read-only. Removal features must be implemented as a separate, explicitly confirmed phase after the relevant activity can be located reliably.
 
-The inventory will include:
+## Complete Export Scope
+
+Every file and structured record in the supplied Facebook export is in scope for discovery, provenance tracking, and inventory. This includes:
+
+- User-created posts, comments, replies, reactions, shares, stories, and media.
+- Content and interactions on the user's profile, other profiles, Pages, groups, events, and listings.
+- Messages and message attachments.
+- Friends, followers, following, blocked accounts, contacts, and other connections.
+- Personal and profile information.
+- Preferences and account settings.
+- Search, browsing, location, and activity history included in the export.
+- Advertising interests and advertising activity.
+- Apps, websites, and off-Facebook activity.
+- Login, logout, IP address, device, browser, session, and security history.
+- Page and group administration information.
+- Files, media, and metadata included in any export folder.
+
+Structured JSON should be stored with full source provenance. Binary media should normally remain outside SQLite and be represented by path-independent fingerprints, type, size, hash, availability, and source provenance. This avoids turning the SQLite file into an impractical binary archive while still inventorying every exported file.
+
+## Control and Removal Scope
+
+Scope follows ownership and authorship, not location. User-created content and user-made interactions are in scope whether they appear on:
+
+- The user's profile or timeline.
+- Another person's profile or post.
+- A Facebook Page.
+- A public, private, or hidden group available in the export.
+- A photo, video, reel, story, event, listing, or other supported Facebook content surface.
+
+The inventory should include every supported activity category attributable to the user, including:
 
 - Posts created by the user.
 - Posts shared by the user.
+- Comments and replies written by the user.
+- Photos, videos, reels, stories, and other media posted by the user.
+- Reactions and likes made by the user.
+- Group posts, comments, replies, media, and reactions created by the user.
+- Posts, comments, replies, media, and reactions created by the user on Pages or other profiles.
+- Content published through a Page identity controlled by the user when the export provides reliable ownership evidence.
 - Text posts.
 - Photos.
 - Videos.
@@ -28,15 +63,34 @@ The inventory will include:
 - The current audience setting when available.
 - The direct Facebook post URL when available.
 - The original source name and URL for shared content when available.
+- The target post, comment, Page, profile, or group associated with each comment or reaction when available.
+- Direct target URLs and Facebook identifiers when available.
+- Whether each activity record has enough evidence to support a future removal action.
 
-The initial phase does not include:
+All exported data may be inventoried, but inventory does not imply ownership. Content created by another person must be marked as external or contextual. Tagged content is not user-owned unless the user authored it. Removal eligibility must distinguish user-owned content, user-made interactions, controlled identities, supported privacy actions, contextual records, and records Facebook does not allow the user to remove.
 
-- Comments made by the user.
-- Reactions or likes made by the user.
-- Messenger content.
-- Posts created by other people that only tag the user.
-- Posts placed on the user's profile by other people.
-- Facebook Page or group administration activity.
+Full control means the tool should inventory, locate, review, classify, export, and request removal of supported user-owned activity. It does not mean Facebook will expose a removable identifier for every historical record. Records blocked by missing identifiers, removed groups, inaccessible posts, permissions, or Facebook interface limitations must remain visible with an accurate eligibility reason.
+
+## Activity Record Requirements
+
+Comments and reactions will be separate entities from posts. Each activity record should contain:
+
+- Internal immutable record ID.
+- Activity type.
+- Activity surface: own profile, other profile, Page, group, or other.
+- Facebook activity ID when available.
+- Creation date and time when available.
+- Comment text for comments.
+- Reaction type for reactions.
+- Direct activity URL when available.
+- Target type and target identifier when available.
+- Target URL, group, Page, or profile reference when available.
+- Source-file and source-record provenance.
+- Date first collected and date last verified.
+- Collection status.
+- Removal eligibility: eligible, insufficient evidence, unsupported, or unknown.
+- Removal limitation reason when ineligible.
+- Future removal status: not requested, queued, removed, failed, or manually resolved.
 
 ## Required Post Information
 
@@ -137,6 +191,16 @@ The report must make incomplete or interrupted collection runs clearly visible.
 - Personal Facebook exports and SQLite databases must not be committed to the repository.
 - The importer must tolerate missing, malformed, and unexpected records without corrupting the database.
 - The tool must report skipped or unsupported records.
+- The database must be treated as a highly sensitive personal archive.
+- Database encryption must be optional. Supported modes will include explicit unencrypted SQLite and a future encrypted-SQLite mode.
+- The selected encryption mode must be recorded as nonsensitive database metadata and displayed before import.
+- Encrypted mode must fail closed when its provider or key is unavailable. It must not create or open an unencrypted replacement silently.
+- Encryption keys and passphrases must not appear in command-line arguments, configuration committed to Git, reports, logs, lock files, or database metadata.
+- Interactive secret entry or Windows Credential Manager should be preferred for future encrypted mode.
+- Switching between encrypted and unencrypted modes requires an explicit verified database migration or export-and-rebuild operation. Renaming a file is not conversion.
+- Messages, contacts, locations, IP addresses, device details, login records, and security information must never appear in sanitized reports or repository fixtures.
+- Binary files must be cataloged without storing their contents as SQLite blobs unless a later design explicitly approves that change.
+- Highly sensitive categories must not be imported until the selected database mode, Windows access, optional encryption or compensating protection, OneDrive permissions, backup exposure, reports, key recovery, and temporary-file handling are explicitly reviewed.
 
 ## Initial Completion Criteria
 
@@ -171,10 +235,20 @@ Missing post IDs, direct URLs, audiences, and uncertain states must remain unava
 
 The private export must not be copied into or committed to the repository.
 
-## Next Step Before Implementation
+## Next Scope Step
 
-Review the SQLite data model in `docs/sqlite-data-model.md` and the phased implementation plan in `docs/implementation-plan.md`. The first coding assignment covers repository privacy protections and the SQLite foundation only.
+Inventory and classify the remaining JSON files under `your_facebook_activity` and relevant group-activity directories. Identify the files containing comments, reactions, and user-created group activity. Record aggregate structures and counts only. Do not copy private exports into the repository. Use those findings to design deterministic identities and future SQLite migrations before implementing additional importers.
 
-## Future Upgrade
+## Approved Future Phases
 
-After the inventory is complete and reliable, a future project phase may add tools to review and remove selected Facebook posts. Any review, classification, archive, trash, deletion, reaction removal, Page unlike, or source unfollow capability must be designed and approved separately.
+After each inventory is complete and reliable, future phases may add:
+
+1. Review and classification for posts, comments, and reactions.
+2. Explicit selection of activity to remove.
+3. Post archive, trash, or deletion workflows.
+4. Comment deletion workflows.
+5. Reaction removal workflows, including reactions on group content and other people's posts.
+6. Verification that each requested action succeeded.
+7. An immutable action log containing the target, request time, result, and sanitized error status.
+
+Removal must never run automatically from import results. It requires an explicit user-selected queue, a preview, confirmation, bounded execution, and post-action verification. Records lacking a reliable target ID or URL remain ineligible for automated removal.

@@ -140,10 +140,10 @@ The initial importer should:
 3. Enrich timeline records from reels, videos, photos, albums, check-ins, and shared-link files only when a safe match exists.
 4. Accept multiple folders that belong to one Facebook export session.
 5. Resolve referenced media across all supplied export folders.
-6. Ignore unreferenced media and unrelated Facebook activity categories.
+6. Ignore unreferenced media and unrelated Facebook activity categories only in the implemented post-import milestone. The complete-export milestone will inventory them separately without creating canonical posts.
 7. Record unsupported records and parse errors without stopping the entire import.
 
-The initial importer should not ingest comments, reactions, messages, tagged content created by other people, Page administration activity, group administration activity, advertising data, login information, or unrelated account activity.
+The implemented post importer does not ingest comments, reactions, or non-post account categories. The complete-export milestone will inventory every category supplied by Facebook, including content, interactions, messages, connections, personal information, preferences, ads, searches, locations, apps, off-Facebook activity, login history, devices, sessions, security information, and administration data. These categories remain separate from canonical posts and from removal eligibility.
 
 ## Verified Gaps
 

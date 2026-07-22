@@ -49,13 +49,30 @@ Every functional, database, matching, reporting, privacy, test, and documentatio
 
 ### Changed
 
+- Expanded the approved project scope from post inventory to user-created posts, comments, reactions, and group activity.
+- Defined ownership and authorship, rather than content location, as the scope boundary across the user's profile, other profiles, Pages, and groups.
+- Expanded future inventory coverage to user-created replies, media, stories, and other supported Facebook surfaces.
+- Required ineligible activity to remain reviewable with an explicit limitation reason when Facebook does not provide a usable target or permission.
+- Expanded the approved database scope to every structured record and file contained in the supplied Facebook export.
+- Added future inventory coverage for messages, connections, personal information, preferences, ads, searches, locations, apps, off-Facebook activity, login history, IP addresses, devices, sessions, security records, and administration data.
+- Separated complete-export inventory scope from ownership and removal eligibility.
+- Required binary media cataloging through metadata and hashes instead of SQLite BLOB storage.
+- Documented that the private SQLite database is not encrypted and will contain highly sensitive information under the expanded scope.
+- Added a mandatory data-protection review before importing messages, contacts, locations, IP addresses, device records, or security history.
+- Made database encryption an optional future capability with explicit unencrypted and encrypted modes.
+- Required encrypted mode to fail closed without its provider or key and prohibited silent fallback to unencrypted storage.
+- Prohibited encryption secrets from command lines, Git-tracked configuration, reports, logs, lock files, and database metadata.
+- Required explicit verified conversion and recovery procedures for switching database encryption modes.
+- Approved future deletion of selected comments and removal of selected reactions from group content and other people's posts.
+- Required separate activity entities, limited target context, removal-eligibility status, explicit queues, previews, confirmation, action logging, and post-action verification.
+- Kept the implemented post importer read-only while moving all remaining export categories into the approved complete-export inventory milestone.
 - Replaced the short README with a complete Windows operator guide covering safety, supported sources, setup, export preparation, validation, import, parameters, exit codes, database contents, deterministic matching, reports, OneDrive backup, troubleshooting, privacy checks, development commands, and project documentation.
 - Made README maintenance mandatory whenever behavior, supported sources, commands, requirements, outputs, privacy controls, or operator workflows change.
 - Updated `AGENTS.md` so user-facing work is incomplete until both the README and changelog match the implementation.
 - Made changelog maintenance mandatory for every project file addition, modification, rename, or removal.
 - Added a root `AGENTS.md` rule stating that work is incomplete until the corresponding changelog entry is present.
 - Changed primary storage from the proposed CSV format to SQLite for more than 100,000 expected posts.
-- Limited the current project scope to populating and maintaining the local inventory. Facebook deletion remains a future upgrade.
+- Kept the implemented importer limited to populating and maintaining the local inventory. Facebook modification remains a separate future phase.
 - Changed the supported import set incrementally from primary timeline only to timeline, archive, trash, reels, video metadata, and uncategorized-photo metadata.
 - Changed archive, trash, and reels to authoritative sources that may create unmatched canonical posts.
 - Changed video and uncategorized-photo sources to enrichment-only sources.

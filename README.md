@@ -1,6 +1,6 @@
 # facebook-cleaner
 
-`facebook-cleaner` builds a private, local SQLite inventory from a personal Facebook JSON export.
+`facebook-cleaner` builds a private, local SQLite inventory of everything contained in a supplied Facebook information export. The approved roadmap also identifies content and interactions the user can review or remove across profiles, Pages, and groups.
 
 It is currently an inventory tool only. It does not sign in to Facebook, call the Facebook API, operate a browser, change audience settings, archive posts, restore posts, or delete content.
 
@@ -24,9 +24,26 @@ Implemented and verified:
 
 Not implemented yet:
 
+- Universal discovery and ingestion of every export category.
+- Personal-information, connections, preferences, ads, apps, off-Facebook activity, login, security, search, device, and location inventories.
+- Message and message-attachment inventory.
+- Complete media-file cataloging and hashing.
+- Optional encrypted-SQLite database mode.
+- Comment inventory.
+- Reaction inventory.
+- Group activity inventory beyond post records already present in supported sources.
+- Removal eligibility evaluation.
 - A review interface.
 - CSV export for manual review.
-- Facebook deletion or modification.
+- Post deletion or modification.
+- Comment deletion.
+- Reaction removal.
+
+The current executable remains read-only. Future removal features will require explicit selection, preview, confirmation, bounded execution, action logging, and verification.
+
+The ownership boundary is the user's authorship or interaction. The tool may inventory posts, shares, comments, replies, media, reactions, Page-identity content with reliable ownership evidence, and other supported activity created by the user anywhere on Facebook. It does not claim ownership of content created by someone else. That content may be retained only as limited context needed to locate the user's activity.
+
+The database scope is broader than the removal scope. Every record supplied in the export may be inventoried, including information Facebook recorded about the user that the user did not create. Removal workflows apply only when the user owns the content, made the interaction, controls the relevant identity, or Facebook provides a supported privacy or deletion action.
 
 ## Safety model
 
@@ -39,7 +56,11 @@ Not implemented yet:
 - Database, report, export, image, video, and audio files are blocked by `.gitignore`.
 - One importer process may write to a database at a time.
 
-The database itself contains private Facebook information. Treat it as sensitive even though the generated report is sanitized.
+The database itself contains private Facebook information. Under the expanded scope it may eventually contain messages, contacts, locations, login records, IP addresses, device data, advertising data, and security history. Treat it as highly sensitive even though generated reports are sanitized.
+
+Database encryption is an approved optional future feature. The current database mode is unencrypted SQLite. A future encrypted mode may use a supported encrypted-SQLite provider. Encryption at rest provided by Windows, BitLocker, EFS, or OneDrive is separate from database-file encryption.
+
+Unencrypted mode must remain supported for users who deliberately select it. Encrypted mode must never silently fall back to an unencrypted database. Until encrypted mode is implemented, keep the database in private storage with restricted Windows and OneDrive access.
 
 ## Supported Facebook files
 
